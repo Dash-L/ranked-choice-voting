@@ -1,0 +1,8 @@
+[package]
+name = "excel-parser"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+calamine = "0.28.0"
+types = { path = "../types" }
