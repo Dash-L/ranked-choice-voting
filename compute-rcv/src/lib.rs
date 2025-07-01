@@ -1,6 +1,7 @@
 #![feature(file_buffered)]
 
-use std::{cell::RefCell, collections::HashMap, env, fs::File, rc::Rc};
+use std::num::NonZeroUsize;
+use std::{collections::HashMap, env, fs::File};
 
 use types::{Ballot, rmp_serde::Deserializer, serde::Deserialize};
 
@@ -30,12 +31,13 @@ pub fn count_rcv() {
             }
         }
         if let Some(first_vote) = first_vote {
-            let r = Rc::new(RefCell::new(b));
-            ballots.push(r.clone());
+            ballots.push(b);
+            let ballot_idx = ballots.len() - 1;
+
             candidate_votes
                 .entry(first_vote)
                 .or_insert(vec![])
-                .push(r.clone());
+                .push(ballot_idx);
         }
     }
 
@@ -51,26 +53,31 @@ pub fn count_rcv() {
     let mut total_valid_ballots = ballots.len();
 
     loop {
-        let mut items = candidate_votes.clone().into_iter().collect::<Vec<_>>();
-        items.sort_by_key(|(_k, v)| v.len());
+        let mut best_id: NonZeroUsize = NonZeroUsize::new(1).unwrap();
+        let mut best_count: usize = 0;
+        let mut worst_id: NonZeroUsize = NonZeroUsize::new(1).unwrap();
+        let mut worst_count: usize = usize::MAX;
+        let votes = candidate_votes.clone();
 
-        let (best_id, best_votes) = items.last().unwrap();
-        let (worst_id, worst_votes) = items.first().unwrap();
+        votes.iter().for_each(|(id, votes)| {
+            if votes.len() > best_count {
+                best_id = *id;
+                best_count = votes.len();
+            }
+            if votes.len() < worst_count {
+                worst_id = *id;
+                worst_count = votes.len();
+            }
+        });
 
-        if best_votes.len() as f64 / total_valid_ballots as f64 > 0.5 {
+        let worst_votes = votes.get(&worst_id).unwrap();
+
+        if best_count as f64 / total_valid_ballots as f64 > 0.5 {
             println!(
                 "The winner is {} with {} votes ({:.3}%)",
                 best_id,
-                best_votes.len(),
-                best_votes.len() as f64 / total_valid_ballots as f64 * 100.
-            );
-
-            let (secnd_id, secnd_votes) = items.iter().rev().skip(1).next().unwrap();
-            println!(
-                "Second is {} with {} votes ({:.3}%)",
-                secnd_id,
-                secnd_votes.len(),
-                secnd_votes.len() as f64 / total_valid_ballots as f64 * 100.
+                best_count,
+                best_count as f64 / total_valid_ballots as f64 * 100.
             );
             break;
         }
@@ -78,36 +85,30 @@ pub fn count_rcv() {
         println!(
             "The current leader is {} with {} votes ({:.3}%)",
             best_id,
-            best_votes.len(),
-            best_votes.len() as f64 / total_valid_ballots as f64 * 100.
+            best_count,
+            best_count as f64 / total_valid_ballots as f64 * 100.
         );
 
-        candidate_votes.remove(worst_id);
+        candidate_votes.remove(&worst_id);
 
-        for b in worst_votes {
-            let mut b_ref = b.borrow_mut();
-            let mut found_valid_candidate = false;
+        'reassign: for b in worst_votes {
+            let b_ref = &mut ballots[*b];
+
             for i in (b_ref.selected + 1)..b_ref.votes.len() {
-                if let Some(c) = b_ref.votes[i]
-                    && candidate_votes.contains_key(&c)
+                if let Some(next_candidate) = b_ref.votes[i]
+                    && candidate_votes.contains_key(&next_candidate)
                 {
                     b_ref.selected = i;
-                    found_valid_candidate = true;
-                    break;
+                    candidate_votes
+                        .get_mut(&next_candidate)
+                        .unwrap()
+                        .push(b.clone());
+
+                    continue 'reassign;
                 }
             }
 
-            if !found_valid_candidate {
-                total_valid_ballots -= 1;
-                continue;
-            }
-
-            if let Some(next_candidate) = b_ref.votes[b_ref.selected] {
-                candidate_votes
-                    .get_mut(&next_candidate)
-                    .unwrap()
-                    .push(b.clone());
-            }
+            total_valid_ballots -= 1;
         }
     }
 }
