@@ -22,7 +22,7 @@
             clang
             llvmPackages.bintools
             probe-rs-tools
-            (pkgs.fenix.fromToolchainFile { file = ./rust-toolchain.toml; sha256 = "sha256-O0LDBSOe/ggTpAS4AyjoRcR/83UOLOzDrzF+D9A8fRo="; })
+            (pkgs.fenix.fromToolchainFile { file = ./rust-toolchain.toml; sha256 = "sha256-FuOGHL+DbavyycfaDakNP1ANZ0qox3ha+v2/4MVI5YY="; })
             # rust-analyzer-nightly
           ];
           
