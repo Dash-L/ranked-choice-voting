@@ -4,13 +4,15 @@ use std::{cell::RefCell, collections::HashMap, env, fs::File, rc::Rc};
 
 use types::{Ballot, rmp_serde::Deserializer, serde::Deserialize};
 
-fn main() {
-    let mut args = env::args();
-    args.next();
+pub fn count_rcv() {
+    let vote_data_path = &std::fs::canonicalize(format!(
+        "{}/../vote_data.mpack",
+        env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set")
+    ))
+    .expect("Failed to canonicalize vote data path");
 
-    let vote_data_path = &args.next().unwrap_or("./vote_data.mpack".to_string());
     let vote_data_file = File::open_buffered(vote_data_path).expect(&format!(
-        "failed to open vote data file: {}",
+        "failed to open vote data file: {:?}",
         vote_data_path
     ));
     let mut deserializer = Deserializer::new(vote_data_file);
