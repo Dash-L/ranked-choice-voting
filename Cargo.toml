@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["compute-rcv", "excel-parser", "types"]
+members = ["compute-rcv", "data-reformatter", "excel-parser", "types"]
 
 [profile.dev]
 opt-level = 3

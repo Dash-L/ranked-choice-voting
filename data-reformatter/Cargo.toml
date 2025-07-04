@@ -1,0 +1,8 @@
+[package]
+name = "data-reformatter"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+types = { version = "0.1.0", path = "../types" }
+rmp-serde = "1.3.0"
