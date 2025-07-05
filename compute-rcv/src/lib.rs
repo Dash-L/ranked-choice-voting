@@ -1,29 +1,34 @@
-#![feature(file_buffered)]
-
 use fnv::FnvHashMap;
-use std::num::NonZeroUsize;
+use std::num::NonZeroU8;
 use std::{env, fs::File};
-
-use types::{Ballot, rmp_serde::Deserializer, serde::Deserialize};
+use types::BallotBetter;
 
 pub fn count_rcv() {
     let vote_data_path = &std::fs::canonicalize(format!(
-        "{}/../vote_data.mpack",
+        "{}/../better_vote_data.mpack",
         env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set")
     ))
     .expect("Failed to canonicalize vote data path");
 
-    // let now = std::time::Instant::now();
-    let vote_data_file = File::open_buffered(vote_data_path).expect(&format!(
+    let file = File::open(vote_data_path).expect(&format!(
         "failed to open vote data file: {:?}",
         vote_data_path
     ));
-    let mut deserializer = Deserializer::new(vote_data_file);
+
+    let mmap = unsafe {
+        memmap2::MmapOptions::new()
+            .map(&file)
+            .expect("Failed to map vote data file")
+    };
+
+    let mut mmap_ref = &mmap[..];
 
     let mut ballots = Vec::new();
     let mut candidate_votes = FnvHashMap::default();
 
-    while let Ok(mut b) = Ballot::deserialize(&mut deserializer) {
+    // let now = std::time::Instant::now();
+
+    while let Some(mut b) = BallotBetter::next(&mut mmap_ref) {
         let first_vote = b
             .votes
             .iter()
@@ -33,7 +38,7 @@ pub fn count_rcv() {
 
         // let now = std::time::Instant::now();
         if let Some((first_vote_index, Some(first_vote))) = first_vote {
-            b.selected = first_vote_index;
+            b.selected = first_vote_index as u8;
 
             ballots.push(b);
             let ballot_idx = ballots.len() - 1;
@@ -63,9 +68,9 @@ pub fn count_rcv() {
     let mut total_valid_ballots = ballots.len();
 
     loop {
-        let mut best_id: NonZeroUsize = NonZeroUsize::new(1).unwrap();
+        let mut best_id: NonZeroU8 = NonZeroU8::new(1).unwrap();
         let mut best_count: usize = 0;
-        let mut worst_id: NonZeroUsize = NonZeroUsize::new(1).unwrap();
+        let mut worst_id: NonZeroU8 = NonZeroU8::new(1).unwrap();
         let mut worst_count: usize = usize::MAX;
 
         candidate_votes.iter().for_each(|(id, votes)| {
@@ -100,11 +105,11 @@ pub fn count_rcv() {
         'reassign: for b in worst_votes {
             let b_mut = &mut ballots[b];
 
-            for i in (b_mut.selected + 1)..b_mut.votes.len() {
+            for i in ((b_mut.selected + 1) as usize)..b_mut.votes.len() {
                 if let Some(next_candidate) = b_mut.votes[i]
                     && candidate_votes.contains_key(&next_candidate)
                 {
-                    b_mut.selected = i;
+                    b_mut.selected = i as u8;
                     candidate_votes
                         .get_mut(&next_candidate)
                         .unwrap()
