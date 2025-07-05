@@ -57,12 +57,6 @@ pub fn count_rcv() {
     let mut items = candidate_votes.iter().collect::<Vec<_>>();
     items.sort_by_key(|(_k, v)| v.len());
 
-    for (k, v) in items {
-        println!("Candidate {} has {} votes", k, v.len());
-    }
-
-    println!("Total valid votes: {}", ballots.len());
-
     // println!("[timing] sorting took: {:?}", now.elapsed());
 
     let mut total_valid_ballots = ballots.len();
@@ -93,13 +87,6 @@ pub fn count_rcv() {
             );
             break;
         }
-
-        println!(
-            "The current leader is {} with {} votes ({:.3}%)",
-            best_id,
-            best_count,
-            best_count as f64 / total_valid_ballots as f64 * 100.
-        );
 
         let worst_votes = candidate_votes.remove(&worst_id).unwrap();
         'reassign: for b in worst_votes {
