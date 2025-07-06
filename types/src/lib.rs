@@ -1,4 +1,4 @@
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use std::num::{NonZeroU8, NonZeroUsize};
 
 pub use rmp_serde;
@@ -13,7 +13,21 @@ pub struct Ballot {
     pub votes: Vec<Option<Candidate>>,
 }
 
-type CandidateBetter = NonZeroU8;
+#[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CandidateBetter(NonZeroU8);
+
+impl CandidateBetter {
+    #[inline(always)]
+    pub fn index(&self) -> usize {
+        self.0.get() as usize - 1
+    }
+}
+
+impl From<NonZeroU8> for CandidateBetter {
+    fn from(value: NonZeroU8) -> Self {
+        CandidateBetter(value)
+    }
+}
 
 #[derive(Serialize, Clone)]
 pub struct BallotBetter<'mmap> {
